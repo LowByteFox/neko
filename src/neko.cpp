@@ -9,14 +9,19 @@
 
 #include "fn/print.hpp"
 #include "api/neko.hpp"
+#include "modules/modules.hpp"
+#include "types.hpp"
 
 #define VERSION "0.0.1"
 
 namespace fs = std::filesystem;
 
+inline const SharedGlobals globals;
+
 void execute(v8::Isolate *isolate, char *filename)
 {
     v8::Isolate::Scope isolateScope(isolate);
+    v8::HandleScope handleScope(isolate);
 
     isolate->SetCaptureStackTraceForUncaughtExceptions(true);
 
@@ -31,6 +36,7 @@ void execute(v8::Isolate *isolate, char *filename)
                 "both 'eval' and 'Function' constructor are disabled!"
                 ).ToLocalChecked()
             );
+    isolate->SetHostInitializeImportMetaObjectCallback(modules::metadataHook);
 
     v8::Context::Scope ctxScope(ctx);
 
@@ -39,10 +45,37 @@ void execute(v8::Isolate *isolate, char *filename)
     std::string code = neko::readFile(filename);
     if (!code.length()) {
         // throw exception
-
         return;
     }
-    // compile to Module
+
+    auto mod = ModuleWrap::CompileModule(isolate, code.c_str());
+    v8::Local<v8::Value> url = v8::String::NewFromUtf8(isolate, filename).ToLocalChecked();
+    mod->SetMeta(isolate, "url", url);
+
+    globals.modules[mod->GetModuleId()] = mod;
+
+    {
+        v8::Isolate::Scope isolateScope(isolate);
+        v8::Context::Scope ctxScope(ctx);
+        v8::HandleScope handleScope(isolate);
+
+        v8::Local<v8::Module> extractedModule = mod->GetModule();
+
+        v8::TryCatch tryCatch(isolate);
+        if (v8::Maybe<bool> out = extractedModule->InstantiateModule(
+                    ctx, modules::moduleResolver); out.IsNothing()) {
+            if (v8::Module::kUninstantiated == extractedModule->GetStatus()) {
+                return;
+            }
+        }
+
+        if (v8::MaybeLocal<v8::Value> res = extractedModule->Evaluate(ctx);
+                extractedModule->GetStatus() == v8::Module::kErrored && !res.IsEmpty()) {
+            if (v8::Module::kErrored == extractedModule->GetStatus()) {
+                exit(1);
+            }
+        }
+    }
 }
 
 void run(char *file, char *argv[])
@@ -50,7 +83,7 @@ void run(char *file, char *argv[])
     v8::V8::InitializeICUDefaultLocation(argv[0]);
     v8::V8::InitializeExternalStartupData(argv[0]);
     auto platform = v8::platform::NewDefaultPlatform();
-    v8::V8::SetFlagsFromString("--use-strict");
+    v8::V8::SetFlagsFromString("--use-strict true");
     v8::V8::InitializePlatform(platform.get());
     v8::V8::Initialize();
 

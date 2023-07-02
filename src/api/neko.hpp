@@ -2,10 +2,9 @@
 #define NEKO_HPP
 
 #include <v8.h>
+#include <map>
 
 namespace neko {
-    char* jsToString(v8::Isolate* isolate, v8::Local<v8::Value> v);
-
     std::string readFile(const char* name);
 }
 

@@ -9,15 +9,11 @@ void __recurse_print(v8::Isolate *isolate,
         int depth = 0,
         bool isNext = false)
 {
-    if (value->IsString()) {
-        char *out = neko::jsToString(isolate, value);
-        if (depth) printf("\"%s\"", out);
-        else printf("%s\n", out);
-    } else if (value->IsNumber()) {
-        char *out = neko::jsToString(isolate, value);
-        if (depth) printf("\"%s\"", out);
-        else printf("%s\n", out);
-    }
+    v8::Local<v8::Context> ctx = isolate->GetCurrentContext();
+    v8::Local<v8::Value> out = v8::JSON::Stringify(ctx, value,
+            v8::String::NewFromUtf8(isolate, "  ").ToLocalChecked()).ToLocalChecked();
+    v8::String::Utf8Value str(isolate, out);
+    printf("%s\n", *str);
 }
 
 void print(const v8::FunctionCallbackInfo<v8::Value>& args)
