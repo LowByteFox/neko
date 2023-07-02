@@ -5,9 +5,35 @@
 #include <v8.h>
 #include <libplatform/libplatform.h>
 
+#include "fn/print.hpp"
+
 #define VERSION "0.0.1"
 
-void run(char *file, char *argv[]) {
+void execute(v8::Isolate *isolate)
+{
+    v8::Isolate::Scope isolateScope(isolate);
+
+    isolate->SetCaptureStackTraceForUncaughtExceptions(true);
+
+    v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
+    global->Set(isolate, "print", v8::FunctionTemplate::New(isolate, print));
+
+    v8::Local<v8::Context> ctx = v8::Context::New(isolate, nullptr, global);
+    ctx->AllowCodeGenerationFromStrings(false);
+    ctx->SetErrorMessageForCodeGenerationFromStrings(
+            v8::String::NewFromUtf8(
+                isolate,
+                "both 'eval' and 'Function' constructor are disabled!"
+                ).ToLocalChecked()
+            );
+
+    v8::Context::Scope ctxScope(ctx);
+
+    // init builtin modules
+}
+
+void run(char *file, char *argv[])
+{
     v8::V8::InitializeICUDefaultLocation(argv[0]);
     v8::V8::InitializeExternalStartupData(argv[0]);
     auto platform = v8::platform::NewDefaultPlatform();
@@ -17,8 +43,10 @@ void run(char *file, char *argv[]) {
 
     v8::Isolate::CreateParams createParams;
     createParams.array_buffer_allocator = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
-
     v8::Isolate *isolate = v8::Isolate::New(createParams);
+
+    // Runtime spins here
+    execute(isolate);
 
     isolate->Dispose();
     v8::V8::Dispose();
@@ -26,12 +54,14 @@ void run(char *file, char *argv[]) {
     delete createParams.array_buffer_allocator;
 }
 
-void create(char *name) {
+void create(char *name)
+{
     (void) name;
     printf("Project creation unavailable now\n");
 }
 
-void printHelp() {
+void printHelp()
+{
     printf(R"(neko - JavaScript runtime for the modern age
 
 Usage: neko [OPTIONS] (ARGS)
@@ -44,7 +74,8 @@ OPTIONS:
 )");
 }
 
-int main (int argc, char *argv[]) {
+int main (int argc, char *argv[])
+{
     // ARG handling
     if (argc == 1) {
         printHelp();
