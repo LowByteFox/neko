@@ -1,15 +1,20 @@
 #include <cstdio>
 #include <cstring>
 #include <memory>
+#include <string>
+#include <filesystem>
 
 #include <v8.h>
 #include <libplatform/libplatform.h>
 
 #include "fn/print.hpp"
+#include "api/neko.hpp"
 
 #define VERSION "0.0.1"
 
-void execute(v8::Isolate *isolate)
+namespace fs = std::filesystem;
+
+void execute(v8::Isolate *isolate, char *filename)
 {
     v8::Isolate::Scope isolateScope(isolate);
 
@@ -30,6 +35,14 @@ void execute(v8::Isolate *isolate)
     v8::Context::Scope ctxScope(ctx);
 
     // init builtin modules
+
+    std::string code = neko::readFile(filename);
+    if (!code.length()) {
+        // throw exception
+
+        return;
+    }
+    // compile to Module
 }
 
 void run(char *file, char *argv[])
@@ -46,7 +59,7 @@ void run(char *file, char *argv[])
     v8::Isolate *isolate = v8::Isolate::New(createParams);
 
     // Runtime spins here
-    execute(isolate);
+    execute(isolate, file);
 
     isolate->Dispose();
     v8::V8::Dispose();
