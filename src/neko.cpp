@@ -1,10 +1,29 @@
 #include <cstdio>
 #include <cstring>
+#include <memory>
+
+#include <v8.h>
+#include <libplatform/libplatform.h>
 
 #define VERSION "0.0.1"
 
-void run(char *file) {
-    (void) file;
+void run(char *file, char *argv[]) {
+    v8::V8::InitializeICUDefaultLocation(argv[0]);
+    v8::V8::InitializeExternalStartupData(argv[0]);
+    auto platform = v8::platform::NewDefaultPlatform();
+    v8::V8::SetFlagsFromString("--use-strict");
+    v8::V8::InitializePlatform(platform.get());
+    v8::V8::Initialize();
+
+    v8::Isolate::CreateParams createParams;
+    createParams.array_buffer_allocator = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
+
+    v8::Isolate *isolate = v8::Isolate::New(createParams);
+
+    isolate->Dispose();
+    v8::V8::Dispose();
+    v8::V8::ShutdownPlatform();
+    delete createParams.array_buffer_allocator;
 }
 
 void create(char *name) {
@@ -43,7 +62,7 @@ int main (int argc, char *argv[]) {
         } else if (!strcmp(s, "run")) {
             char *val = nullptr;
             if (i + 1 < argc) val = argv[i + 1];
-            run(val);
+            run(val, argv);
             break;
         } else if (!strcmp(s, "create")) {
             char *val = nullptr;
