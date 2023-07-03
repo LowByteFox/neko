@@ -1,3 +1,3 @@
-import { xd } from "./data.js"
+import data from "./data.js"
 
-print(7);
+print(data);

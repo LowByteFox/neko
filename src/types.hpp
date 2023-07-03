@@ -4,6 +4,7 @@
 #include "api/neko.hpp"
 #include <map>
 #include <memory>
+#include <v8.h>
 
 class ModuleWrap;
 
@@ -36,6 +37,7 @@ class ModuleWrap {
             auto mod = std::make_shared<ModuleWrap>();
 
             v8::Isolate::Scope isolatescope(isolate);
+            v8::Local<v8::Context> ctx = isolate->GetCurrentContext();
 
             v8::ScriptOrigin origin(isolate,
                     v8::Local<v8::Integer>(),
@@ -52,7 +54,8 @@ class ModuleWrap {
                 v8::MaybeLocal<v8::Module> ret = v8::ScriptCompiler::CompileModule(
                         isolate, &source);
                 if (tryCatch.HasCaught()) {
-                    // handle exception
+                    neko::printException(ctx, tryCatch.Exception());
+                    return mod;
                 }
 
                 mod->SetModule(ret.ToLocalChecked());

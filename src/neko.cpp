@@ -44,7 +44,7 @@ void execute(v8::Isolate *isolate, char *filename)
 
     std::string code = neko::readFile(filename);
     if (!code.length()) {
-        // throw exception
+        neko::throwAndPrintException(ctx, "Error: File not found");
         return;
     }
 
@@ -65,6 +65,7 @@ void execute(v8::Isolate *isolate, char *filename)
         if (v8::Maybe<bool> out = extractedModule->InstantiateModule(
                     ctx, modules::moduleResolver); out.IsNothing()) {
             if (v8::Module::kUninstantiated == extractedModule->GetStatus()) {
+                neko::printException(ctx, tryCatch.Exception());
                 return;
             }
         }
@@ -72,7 +73,8 @@ void execute(v8::Isolate *isolate, char *filename)
         if (v8::MaybeLocal<v8::Value> res = extractedModule->Evaluate(ctx);
                 extractedModule->GetStatus() == v8::Module::kErrored && !res.IsEmpty()) {
             if (v8::Module::kErrored == extractedModule->GetStatus()) {
-                exit(1);
+                neko::printException(ctx, extractedModule->GetException());
+                return;
             }
         }
     }
