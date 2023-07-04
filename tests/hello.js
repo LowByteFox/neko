@@ -27,3 +27,5 @@ foo.set(foo, "haha");
 foo.set(xdd, new Map([[xd, xdd]]));
 
 print(foo);
+
+print(["xd", "lol", 7, {}, foo]);

@@ -1,5 +1,6 @@
 #include "print.hpp"
 #include "../api/neko.hpp"
+#include "../api/neko-iter.hpp"
 
 #include <algorithm>
 #include <cstdio>
@@ -115,6 +116,19 @@ void __recurse_print(v8::Isolate *isolate,
         printf("}");
         if (!isNext) printf("\n");
 
+    } else if (value->IsArray()) {
+        auto arr = v8::Local<v8::Array>::Cast(value);
+        auto it = neko::V8ArrayIterator(arr, ctx, 1);
+
+        printf("[");
+        for (auto v : it) {
+            __recurse_print(isolate, v, depth, true, true, false, cached);
+            printf(", ");
+        }
+        auto last = arr->Get(ctx, arr->Length() - 1).ToLocalChecked();
+        __recurse_print(isolate, last, depth, false, true, false, cached);
+        printf("]");
+        if (!isNext) printf("\n");
     } else if (value->IsObject()) {
         v8::Local<v8::Object> obj = value->ToObject(ctx).ToLocalChecked();
         v8::Local<v8::Array> props = obj->GetOwnPropertyNames(ctx).ToLocalChecked();
