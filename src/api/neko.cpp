@@ -2,6 +2,7 @@
 #include "../types.hpp"
 
 #include <v8.h>
+#include <memory>
 #include <string>
 #include <fstream>
 #include <sstream>
@@ -11,6 +12,15 @@ namespace fs = std::filesystem;
 extern const SharedGlobals globals;
 
 namespace neko {
+
+    std::unique_ptr<const char*> jsToString(v8::Isolate *isolate, v8::Local<v8::Value> val)
+    {
+        v8::Isolate::Scope isolateScope(isolate);
+        v8::String::Utf8Value str(isolate, val);
+        auto res = std::make_unique<const char*>(strdup(*str ? *str : "<invalid string>"));
+        return res;
+    }
+
     std::string readFile(const char* name)
     {
         std::ifstream file(name);
@@ -89,7 +99,7 @@ namespace neko {
         if (!module) {
             fprintf(stderr, "%s\n", cstr);
         } else {
-            v8::Local<v8::Value> filename = module->GetMetaValue("url").value;
+            v8::Local<v8::Value> filename = module->GetMetaValue("url")->value.Get(isolate);
             v8::String::Utf8Value filenameStr(isolate, filename);
             auto path = fs::path(*filenameStr);
             fprintf(stderr, "[%s:%d:%d] %s\n", path.filename().c_str(), line, col, cstr);
@@ -104,7 +114,7 @@ namespace neko {
             int id = frame->GetScriptId();
             const auto& tempModule = globals.modules[id];
             if (tempModule) {
-                v8::Local<v8::Value> filename = tempModule->GetMetaValue("url").value;
+                v8::Local<v8::Value> filename = tempModule->GetMetaValue("url")->value.Get(isolate);
                 v8::String::Utf8Value filenameStr(isolate, filename);
                 auto path = fs::path(*filenameStr);
                 if (funcName.IsEmpty()) {

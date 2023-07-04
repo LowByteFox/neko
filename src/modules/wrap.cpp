@@ -3,6 +3,7 @@
 #include <v8.h>
 #include <vector>
 #include <cstring>
+#include <memory>
 
 v8::Local<v8::Module> ModuleWrap::GetModule()
 {
@@ -20,15 +21,15 @@ int ModuleWrap::GetModuleId()
     return this->modId;
 }
 
-std::vector<Metadata> ModuleWrap::GetMeta()
+std::vector<std::shared_ptr<Metadata>> ModuleWrap::GetMeta()
 {
     return this->meta;
 }
 
-Metadata ModuleWrap::GetMetaValue(const char *key)
+std::shared_ptr<Metadata> ModuleWrap::GetMetaValue(const char *key)
 {
     for (auto meta: this->meta) {
-        if (!strcmp(key, meta.ckey)) return meta;
+        if (!strcmp(key, meta->ckey)) return meta;
     }
     return {};
 }
@@ -38,11 +39,12 @@ void ModuleWrap::SetMeta(v8::Isolate *isolate, const char *key, v8::Local<v8::Va
     v8::Isolate::Scope isolateScope(isolate);
     v8::Local<v8::Context> ctx = isolate->GetCurrentContext();
     v8::Context::Scope ctxScope(ctx);
+    v8::HandleScope HandleScope(isolate);
 
-    this->meta.push_back({
-            .ckey = strdup(key),
-            .key = v8::String::NewFromUtf8(isolate, key).ToLocalChecked(),
-            .value = value
-        }
-    );
+    auto val = std::make_shared<Metadata>();
+    val->ckey = strdup(key);
+    val->key = v8::String::NewFromUtf8(isolate, key).ToLocalChecked();
+    val->value.Reset(isolate, value);
+
+    this->meta.push_back(val);
 }

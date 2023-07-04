@@ -19,7 +19,7 @@ extern const SharedGlobals globals;
 typedef struct {
     char *ckey;
     v8::Local<v8::Name> key;
-    v8::Local<v8::Value> value;
+    v8::Persistent<v8::Value> value;
 } Metadata;
 
 class ModuleWrap {
@@ -27,8 +27,8 @@ class ModuleWrap {
         v8::Local<v8::Module> GetModule();
         int GetModuleId();
         void SetModule(v8::Local<v8::Module> mod);
-        std::vector<Metadata> GetMeta();
-        Metadata GetMetaValue(const char *key);
+        std::vector<std::shared_ptr<Metadata>> GetMeta();
+        std::shared_ptr<Metadata> GetMetaValue(const char *key);
         void SetMeta(v8::Isolate *isolate, const char *key, v8::Local<v8::Value> value);
 
         static std::shared_ptr<ModuleWrap> CompileModule(v8::Isolate *isolate, 
@@ -65,7 +65,7 @@ class ModuleWrap {
         }
 
     private:
-        std::vector<Metadata> meta;
+        std::vector<std::shared_ptr<Metadata>> meta;
         v8::Local<v8::Module> mod;
         int modId;
 };

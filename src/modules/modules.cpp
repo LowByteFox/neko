@@ -12,11 +12,15 @@ namespace modules {
     void metadataHook(v8::Local<v8::Context> ctx,
             v8::Local<v8::Module> mod, v8::Local<v8::Object> meta)
     {
+        v8::Isolate *isolate = ctx->GetIsolate();
         int id = mod->ScriptId();
         auto extractedModule = globals.modules[id];
-        auto metaObj = extractedModule->GetMeta();
+        const auto& metaObj = extractedModule->GetMeta();
         for (const auto& value : metaObj) {
-            v8::Maybe<bool> ret = meta->CreateDataProperty(ctx, value.key, value.value);
+            v8::Local<v8::Name> key = v8::String::NewFromUtf8(isolate, 
+                    value->ckey).ToLocalChecked();
+            v8::Local<v8::Value> val = value->value.Get(isolate);
+            v8::Maybe<bool> ret = meta->CreateDataProperty(ctx, key, val);
             if (!ret.ToChecked()) break;
         }
     }
@@ -29,15 +33,15 @@ namespace modules {
     )
     {
         v8::Isolate *isolate = ctx->GetIsolate();
-        v8::String::Utf8Value val1(isolate, specifier);
-        char* path = *val1;
+        const char* path = *neko::jsToString(isolate, specifier).get();
         std::string name(path);
 
         std::string base = name;
 
         auto extractedModule = globals.modules[ref->ScriptId()];
-        v8::String::Utf8Value val2(isolate, extractedModule->GetMetaValue("url").value);
-        char* url = *val2;
+        const char* url = *neko::jsToString(isolate, 
+                extractedModule->GetMetaValue("url")->value.Get(isolate)).get();
+
         std::string urlPath(url);
 
         if (base.c_str()[0] != '/') {

@@ -3,6 +3,7 @@
 
 #include <v8.h>
 #include <map>
+#include <memory>
 
 namespace neko {
 
@@ -13,6 +14,8 @@ namespace neko {
         TYPE,
         ERROR
     };
+
+    std::unique_ptr<const char*> jsToString(v8::Isolate *isolate, v8::Local<v8::Value> val);
 
     std::string readFile(const char* name);
 
