@@ -16,10 +16,13 @@ thread_local! {
         let glob = SharedGlobals {
             last_script_id: 0,
             modules: HashMap::new(),
-            cached_modules: HashMap::new()
+            cached_modules: HashMap::new(),
+            isolate_ptr: Box::into_raw(Box::new(v8::Isolate::new(Default::default())))
         };
         RefCell::new(glob)
     };
+
+    pub static ISOLATE: RefCell<Option<&'static mut v8::Isolate>> = RefCell::new(None);
 }
 
 fn evaluate(isolate: &mut v8::Isolate, file: &str) {
@@ -42,7 +45,7 @@ fn evaluate(isolate: &mut v8::Isolate, file: &str) {
 
     let modd = &mut module.get_module().unwrap();
 
-    println!("{}", module.id);
+    modd.instantiate_module(scope, modules::resolver);
 }
 
 fn run(file: &str) {
@@ -50,8 +53,13 @@ fn run(file: &str) {
     v8::V8::initialize_platform(platform);
     v8::V8::initialize();
 
-    let isolate = &mut v8::Isolate::new(Default::default());
-    evaluate(isolate, file);
+    let isolate: *mut v8::OwnedIsolate = GLOBALS.with(|g| {
+        g.borrow().isolate_ptr
+    });
+
+    unsafe {
+        evaluate(&mut *isolate, file);
+    }
 }
 
 fn print_help() {

@@ -4,5 +4,6 @@ use std::collections::HashMap;
 pub struct SharedGlobals<'a> {
     pub last_script_id: i32,
     pub modules: HashMap<i32, super::modules::ModuleWrapper<'a>>,
-    pub cached_modules: HashMap<String, i32>
+    pub cached_modules: HashMap<String, i32>,
+    pub isolate_ptr: *mut v8::OwnedIsolate
 }
