@@ -56,8 +56,17 @@ fn evaluate(isolate: &mut v8::Isolate, file: &str) {
     let local_module = &mut module.get_module().unwrap();
     let try_catch = &mut v8::TryCatch::new(scope);
     let _ = local_module.instantiate_module(try_catch, modules::resolver);
-    println!("{}", try_catch.has_caught());
+    if try_catch.has_caught() {
+        let exception = try_catch.exception().unwrap();
+        api::print_exception(try_catch, exception, cwd.to_str().unwrap());
+        exit(1);
+    }
     let _ = local_module.evaluate(try_catch);
+    if local_module.get_status() == v8::ModuleStatus::Errored {
+        let exception = local_module.get_exception();
+        api::print_exception(try_catch, exception, cwd.to_str().unwrap());
+        exit(1);
+    }
 }
 
 fn run(file: &str) {
