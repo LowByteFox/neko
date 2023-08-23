@@ -1,5 +1,3 @@
-use std::borrow::BorrowMut;
-
 use super::ModuleWrapper;
 use super::super::GLOBALS;
 

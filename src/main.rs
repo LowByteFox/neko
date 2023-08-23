@@ -1,5 +1,4 @@
-use std::borrow::{Borrow, BorrowMut};
-use std::cell::{RefCell};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::env;
 use std::process::exit;
@@ -23,12 +22,6 @@ thread_local! {
     };
 }
 
-fn lol(scope: &mut v8::HandleScope, args: v8::FunctionCallbackArguments, mut retval: v8::ReturnValue) {
-    let msg = args.get(0).to_string(scope).unwrap().to_rust_string_lossy(scope);
-    println!("Log: {}", msg);
-    retval.set(v8::String::new(scope, "haha").unwrap().into());
-}
-
 fn evaluate(isolate: &mut v8::Isolate, file: &str) {
     isolate.set_capture_stack_trace_for_uncaught_exceptions(true, 10);
     let handle_scope = &mut v8::HandleScope::new(isolate);
@@ -48,11 +41,6 @@ fn evaluate(isolate: &mut v8::Isolate, file: &str) {
     let module = modules::ModuleWrapper::compile_module(scope, out);
 
     println!("{}", module.id);
-
-    GLOBALS.with(|g| {
-        let hm = g.borrow();
-        println!("{}", hm.last_script_id);
-    })
 }
 
 fn run(file: &str) {
