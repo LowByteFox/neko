@@ -1,4 +1,7 @@
+use std::borrow::BorrowMut;
+
 use super::ModuleWrapper;
+use super::super::GLOBALS;
 
 impl<'a> super::ModuleWrapper<'a> {
     pub fn get_module(&self) -> Option<v8::Local<'a, v8::Module>> {
@@ -45,12 +48,18 @@ impl<'a> super::ModuleWrapper<'a> {
             id: 0
         };
 
+        GLOBALS.with(|g| {
+            let mt = &mut g.borrow_mut();
+            module.id = mt.last_script_id;
+            mt.last_script_id += 1;
+        });
+
         let empty_int = v8::Integer::new(scope, 0).into();
         let v8_null = v8::null(scope).into();
 
         let origin = &mut v8::ScriptOrigin::new(scope,
                                                 empty_int,
-                                                0, 0, false, 1, v8_null,
+                                                0, 0, false, module.id, v8_null,
                                                 false, false, true);
 
         let source = v8::script_compiler::Source::new(

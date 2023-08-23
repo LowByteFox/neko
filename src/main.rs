@@ -1,10 +1,27 @@
+use std::borrow::{Borrow, BorrowMut};
+use std::cell::{RefCell};
+use std::collections::HashMap;
 use std::env;
 use std::process::exit;
 
+use globals::SharedGlobals;
+
 mod api;
 mod modules;
+mod globals;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+thread_local! {
+    pub static GLOBALS: RefCell<SharedGlobals<'static>> = {
+        let glob = SharedGlobals {
+            last_script_id: 0,
+            modules: HashMap::new(),
+            cached_modules: HashMap::new()
+        };
+        RefCell::new(glob)
+    };
+}
 
 fn lol(scope: &mut v8::HandleScope, args: v8::FunctionCallbackArguments, mut retval: v8::ReturnValue) {
     let msg = args.get(0).to_string(scope).unwrap().to_rust_string_lossy(scope);
@@ -29,6 +46,13 @@ fn evaluate(isolate: &mut v8::Isolate, file: &str) {
     }
 
     let module = modules::ModuleWrapper::compile_module(scope, out);
+
+    println!("{}", module.id);
+
+    GLOBALS.with(|g| {
+        let hm = g.borrow();
+        println!("{}", hm.last_script_id);
+    })
 }
 
 fn run(file: &str) {
