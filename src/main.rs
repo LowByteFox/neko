@@ -40,6 +40,8 @@ fn evaluate(isolate: &mut v8::Isolate, file: &str) {
 
     let module = modules::ModuleWrapper::compile_module(scope, out);
 
+    let modd = &mut module.get_module().unwrap();
+
     println!("{}", module.id);
 }
 
