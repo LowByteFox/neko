@@ -2,6 +2,7 @@ use std::env;
 use std::process::exit;
 
 mod api;
+mod modules;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -18,9 +19,16 @@ fn evaluate(isolate: &mut v8::Isolate, file: &str) {
 
     let ctx = v8::Context::new_from_template(handle_scope, global);
     ctx.set_allow_generation_from_strings(false);
-    let mut scope = v8::ContextScope::new(handle_scope, ctx);
+    let scope = &mut v8::ContextScope::new(handle_scope, ctx);
 
-    println!("{}", api::api::read_file(file));
+    let mut out = api::read_file(file);
+    out = String::from(out.trim());
+    if out.len() == 0 {
+        eprintln!("Si v pici");
+        return;
+    }
+
+    let module = modules::ModuleWrapper::compile_module(scope, out);
 }
 
 fn run(file: &str) {
