@@ -1,17 +1,36 @@
-use super::super::GLOBALS;
+use std::path::Path;
+
+use crate::{GLOBALS, utils::normalize_path, api::read_file};
+
+use super::ModuleWrapper;
 
 pub fn resolver<'a>(ctx: v8::Local<'a, v8::Context>,
                 specifier: v8::Local<'a, v8::String>,
-                assertions: v8::Local<'a, v8::FixedArray>,
+                _assertions: v8::Local<'a, v8::FixedArray>,
                 referer: v8::Local<'a, v8::Module>) -> Option<v8::Local<'a, v8::Module>> {
-    let isolate = unsafe {
-        let isol: *mut v8::OwnedIsolate = GLOBALS.with(|g| {
-            g.borrow().isolate_ptr
-        });
+    let scope = unsafe { &mut v8::CallbackScope::new(ctx) };
 
-        &mut *isol
-    };
+    let mut base = specifier.to_rust_string_lossy(scope);
+    let val = GLOBALS.lock().unwrap();
+    let original_path = val.module_paths_id.get(&referer.script_id().unwrap()).unwrap();
 
-    println!("{}", specifier.to_rust_string_lossy(isolate));
-    return None;
+    let name = base.clone();
+
+    if base.as_bytes()[0] != b'/' {
+        base = String::from(Path::new(original_path).parent().unwrap().to_str().unwrap());
+        base += "/";
+        base += name.as_str();
+        base = String::from(normalize_path(Path::new(&String::from(base))).to_str().unwrap());
+    }
+
+    drop(val);
+
+    let code = read_file(base.as_str());
+    let module = ModuleWrapper::compile_module(scope, code);
+
+    let mut val = GLOBALS.lock().unwrap();
+    val.module_paths_id.insert(module.id, base);
+    drop(val);
+
+    return module.get_module();
 }

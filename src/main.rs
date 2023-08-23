@@ -1,28 +1,28 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::env;
 use std::process::exit;
+use std::sync::Mutex;
 
 use globals::SharedGlobals;
+use lazy_static::lazy_static;
+
+use crate::utils::normalize_path;
 
 mod api;
 mod modules;
 mod globals;
+mod utils;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-thread_local! {
-    pub static GLOBALS: RefCell<SharedGlobals<'static>> = {
+lazy_static! {
+    pub static ref GLOBALS: Mutex<SharedGlobals> = {
         let glob = SharedGlobals {
             last_script_id: 0,
-            modules: HashMap::new(),
-            cached_modules: HashMap::new(),
-            isolate_ptr: Box::into_raw(Box::new(v8::Isolate::new(Default::default())))
+            module_paths_id: HashMap::new(),
         };
-        RefCell::new(glob)
+        Mutex::new(glob)
     };
-
-    pub static ISOLATE: RefCell<Option<&'static mut v8::Isolate>> = RefCell::new(None);
 }
 
 fn evaluate(isolate: &mut v8::Isolate, file: &str) {
@@ -43,9 +43,21 @@ fn evaluate(isolate: &mut v8::Isolate, file: &str) {
 
     let module = modules::ModuleWrapper::compile_module(scope, out);
 
-    let modd = &mut module.get_module().unwrap();
+    let mut cwd = env::current_dir().unwrap();
+    cwd.push(file);
+    cwd = normalize_path(cwd.as_path());
 
-    modd.instantiate_module(scope, modules::resolver);
+    let mut val = GLOBALS.lock().unwrap();
+
+    val.module_paths_id.insert(module.id, String::from(cwd.to_str().unwrap()));
+
+    drop(val);
+
+    let local_module = &mut module.get_module().unwrap();
+    let try_catch = &mut v8::TryCatch::new(scope);
+    let _ = local_module.instantiate_module(try_catch, modules::resolver);
+    println!("{}", try_catch.has_caught());
+    let _ = local_module.evaluate(try_catch);
 }
 
 fn run(file: &str) {
@@ -53,13 +65,9 @@ fn run(file: &str) {
     v8::V8::initialize_platform(platform);
     v8::V8::initialize();
 
-    let isolate: *mut v8::OwnedIsolate = GLOBALS.with(|g| {
-        g.borrow().isolate_ptr
-    });
+    let isolate = &mut v8::Isolate::new(Default::default());
 
-    unsafe {
-        evaluate(&mut *isolate, file);
-    }
+    evaluate(isolate, file);
 }
 
 fn print_help() {
