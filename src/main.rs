@@ -3,7 +3,7 @@ use std::env;
 use std::process::exit;
 use std::sync::Mutex;
 
-use globals::SharedGlobals;
+use globals::{SharedGlobals, WrappedGlobalModule};
 use lazy_static::lazy_static;
 
 use crate::utils::normalize_path;
@@ -20,6 +20,7 @@ lazy_static! {
         let glob = SharedGlobals {
             last_script_id: 0,
             module_paths_id: HashMap::new(),
+            module_cache: HashMap::new()
         };
         Mutex::new(glob)
     };
@@ -50,6 +51,7 @@ fn evaluate(isolate: &mut v8::Isolate, file: &str) {
     let mut val = GLOBALS.lock().unwrap();
 
     val.module_paths_id.insert(module.id, String::from(cwd.to_str().unwrap()));
+    val.module_cache.insert(String::from(cwd.to_str().unwrap()), WrappedGlobalModule(v8::Global::new(scope, module.get_module().unwrap())));
 
     drop(val);
 

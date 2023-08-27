@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::{GLOBALS, utils::normalize_path, api::read_file};
+use crate::{GLOBALS, utils::normalize_path, api::read_file, globals::WrappedGlobalModule};
 
 use super::ModuleWrapper;
 
@@ -23,13 +23,21 @@ pub fn resolver<'a>(ctx: v8::Local<'a, v8::Context>,
         base = String::from(normalize_path(Path::new(&String::from(base))).to_str().unwrap());
     }
 
+    match val.module_cache.get(&base) {
+        Some(module) => {
+            return Some(v8::Local::new(scope, module.get_module()));
+        },
+        None => ()
+    }
+
     drop(val);
 
     let code = read_file(base.as_str());
     let module = ModuleWrapper::compile_module(scope, code);
 
     let mut val = GLOBALS.lock().unwrap();
-    val.module_paths_id.insert(module.id, base);
+    val.module_paths_id.insert(module.id, base.clone());
+    val.module_cache.insert(base, WrappedGlobalModule(v8::Global::new(scope, module.get_module().unwrap())));
     drop(val);
 
     return module.get_module();
